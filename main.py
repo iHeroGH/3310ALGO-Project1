@@ -1,8 +1,11 @@
 """
 Implements methods for classic, d&q, and strassen matrix multiplication
 """
+# pylint: disable=unbalanced-tuple-unpacking
 from typing import Callable, Any
 from random import randint
+from time import time
+from matplotlib import pyplot as plt
 
 type Vector = list[int]
 type Matrix = list[Vector]
@@ -58,16 +61,24 @@ def matrix_multiplication(
 
     def wrapper(
                 matrix_a: Matrix,
-                matrix_b: Matrix
+                matrix_b: Matrix,
+                root_call = True
             ):
         """
         Procedure to take place any time a matrix multiplication function
         is called
         """
+        start_time = time()
 
         assert can_multiply(matrix_a, matrix_b)
         matrix_c = multiplier(matrix_a, matrix_b)
-        return matrix_c
+
+        duration = time() - start_time
+
+        if root_call:
+            print(f"({multiplier.__name__}) Time Taken: {duration:.8f} seconds")
+
+        return matrix_c, duration
 
     return wrapper
 
@@ -201,26 +212,26 @@ def divide_and_conquer_multiplication(
     if len(matrix_a) == get_width(matrix_a) \
             == len(matrix_b) == get_width(matrix_b) \
                 == 2:
-        return classic_multiplication(matrix_a, matrix_b)
+        return classic_multiplication(matrix_a, matrix_b, root_call=False)[0]
 
     a11, a12, a21, a22 = split_matrix(matrix_a)
     b11, b12, b21, b22 = split_matrix(matrix_b)
 
     c11 = matrix_addition(
-        divide_and_conquer_multiplication(a11, b11),
-        divide_and_conquer_multiplication(a12, b21)
+        divide_and_conquer_multiplication(a11, b11, root_call=False)[0],
+        divide_and_conquer_multiplication(a12, b21, root_call=False)[0]
     )
     c12 = matrix_addition(
-        divide_and_conquer_multiplication(a11, b12),
-        divide_and_conquer_multiplication(a12, b22)
+        divide_and_conquer_multiplication(a11, b12, root_call=False)[0],
+        divide_and_conquer_multiplication(a12, b22, root_call=False)[0]
     )
     c21 = matrix_addition(
-        divide_and_conquer_multiplication(a21, b11),
-        divide_and_conquer_multiplication(a22, b21)
+        divide_and_conquer_multiplication(a21, b11, root_call=False)[0],
+        divide_and_conquer_multiplication(a22, b21, root_call=False)[0]
     )
     c22 = matrix_addition(
-        divide_and_conquer_multiplication(a21, b12),
-        divide_and_conquer_multiplication(a22, b22)
+        divide_and_conquer_multiplication(a21, b12, root_call=False)[0],
+        divide_and_conquer_multiplication(a22, b22, root_call=False)[0]
     )
 
     return combine_matrix(c11, c12, c21, c22)
@@ -244,32 +255,39 @@ def strassen_multiplication(
 
     p = strassen_multiplication(
         matrix_addition(a11, a22),
-        matrix_addition(b11, b22)
-    )
+        matrix_addition(b11, b22),
+        root_call=False
+    )[0]
     q = strassen_multiplication(
         matrix_addition(a21, a22),
-        b11
-    )
+        b11,
+        root_call=False
+    )[0]
     r = strassen_multiplication(
         a11,
-        matrix_addition(b12, matrix_negation(b22))
-    )
+        matrix_addition(b12, matrix_negation(b22)),
+        root_call=False
+    )[0]
     s = strassen_multiplication(
         a22,
-        matrix_addition(b21, matrix_negation(b11))
-    )
+        matrix_addition(b21, matrix_negation(b11)),
+        root_call=False
+    )[0]
     t = strassen_multiplication(
         matrix_addition(a11, a12),
-        b22
-    )
+        b22,
+        root_call=False
+    )[0]
     u = strassen_multiplication(
         matrix_addition(a21, matrix_negation(a11)),
-        matrix_addition(b11, b12)
-    )
+        matrix_addition(b11, b12),
+        root_call=False
+    )[0]
     v = strassen_multiplication(
         matrix_addition(a12, matrix_negation(a22)),
-        matrix_addition(b21, b22)
-    )
+        matrix_addition(b21, b22),
+        root_call=False
+    )[0]
 
     c11 = matrix_addition( # P + S - T + V
         matrix_addition(matrix_addition(p, s), matrix_negation(t)), v
@@ -283,28 +301,53 @@ def strassen_multiplication(
     return combine_matrix(c11, c12, c21, c22)
 
 # DRIVER #######################################################################
-ma: Matrix = [
-    [3, 0, 3, 1],
-    [5, 3, 1, 0],
-    [3, 0, 3, 1],
-    [1, 2, 2, 5]
-]
+DIMENSIONS = 2
+to_plot = []
+start = time()
+while True:
+    print(f"Matrices with dim {DIMENSIONS} are being created!")
+    ma: Matrix = generate_random_matrix(1, 50, DIMENSIONS)
+    # print("Matrix A Created!")
+    mb: Matrix = generate_random_matrix(1, 50, DIMENSIONS)
+    # print("Matrix B Created!")
 
-mb: Matrix = [
-    [2, 4, 5, 2],
-    [1, 3, 2, 1],
-    [3, 0, 5, 0],
-    [0, 4, 1, 4]
-]
+    # print_matrix("MA = ",  matrix=ma)
+    # print_matrix("MB = ", matrix=mb)
 
-print_matrix("MA = ",  matrix=ma)
-print_matrix("MB = ", matrix=mb)
+    mcc, c_duration = classic_multiplication(ma, mb)
+    # print_matrix("MCC = ", matrix=mcc)
 
-mc: Matrix = classic_multiplication(ma, mb)
-print_matrix("MC = ", matrix=mc)
+    mcd, d_duration = divide_and_conquer_multiplication(ma, mb)
+    # print_matrix("MCD = ", matrix=mcd)
 
-mc: Matrix = divide_and_conquer_multiplication(ma, mb)
-print_matrix("MC = ", matrix=mc)
+    mcs, s_duration = strassen_multiplication(ma, mb)
+    # print_matrix("MCS = ", matrix=mcs)
 
-mc: Matrix = strassen_multiplication(ma, mb)
-print_matrix("MC = ", matrix=mc)
+    to_plot.append((DIMENSIONS, c_duration, d_duration, s_duration))
+
+    assert matrix_equality(mcc, mcd, mcs)
+    print("All three calculations returned the same matrix!\n\n")
+
+    DIMENSIONS *= 2
+
+    if time() - start > 5400:
+        break
+
+print(to_plot, file=open("comparison.txt", 'w', encoding="utf-8"))
+
+dimensions_used = [i[0] for i in to_plot]
+c_durations = [i[1] for i in to_plot]
+d_durations = [i[2] for i in to_plot]
+s_durations = [i[3] for i in to_plot]
+
+plt.title("Multiplication Algorithm Comparison")
+plt.xlabel("Dimensions Used")
+plt.ylabel("Time Taken (s)")
+
+plt.plot(dimensions_used, c_durations, color="red", label="Classic")
+plt.plot(dimensions_used, d_durations, color="green", label="Divide and Conquer")
+plt.plot(dimensions_used, s_durations, color="blue", label="Strassen")
+
+plt.legend()
+plt.savefig("comparison.png")
+plt.show()

@@ -1,34 +1,35 @@
 """
 Implements methods for classic, d&q, and strassen matrix multiplication
 """
-from typing import Callable
+from typing import Callable, Any
 
-def get_width(matrix: list[list[int]]) -> int:
-    """Returns the length of the longest sub-list in the matrix"""
-    width = 0
-    for i in matrix:
-        if len(i) > width:
-            width = len(i)
-    return width
+type Vector = list[int]
+type Matrix = list[Vector]
+
+def get_width(matrix: Matrix) -> int:
+    """Returns the width of the matrix"""
+    if not matrix:
+        return 0
+    return len(matrix[0])
 
 def can_multiply(
-            matrix_a: list[list[int]],
-            matrix_b: list[list[int]]
+            matrix_a: Matrix,
+            matrix_b: Matrix
         ) -> bool:
     """Denotes whether or not two matrices can be multiplied"""
     return get_width(matrix_a) == len(matrix_b)
 
 def matrix_multiplication(
             multiplier: Callable[
-                            [list[list[int]], list[list[int]]],
-                            list[list[int]]
+                            [Matrix, Matrix],
+                            Matrix
                         ]
         ):
     """A decorator for a function taking two matrices and returning a matrix"""
 
     def wrapper(
-                matrix_a: list[list[int]],
-                matrix_b: list[list[int]]
+                matrix_a: Matrix,
+                matrix_b: Matrix
             ):
         """
         Procedure to take place any time a matrix multiplication function
@@ -41,7 +42,7 @@ def matrix_multiplication(
 
     return wrapper
 
-def vector_multiplication(vector_a: list[int], vector_b: list[int]) -> int:
+def vector_multiplication(vector_a: Vector, vector_b: Vector) -> int:
     """Returns the dot product of two vectors"""
     assert len(vector_a) == len(vector_b)
 
@@ -51,26 +52,81 @@ def vector_multiplication(vector_a: list[int], vector_b: list[int]) -> int:
 
     return product
 
-def print_matrix(matrix: list[list[int]]) -> None:
+def vector_addition(vector_a: Vector, vector_b: Vector) -> Vector:
+    """Adds two vectors together"""
+    assert len(vector_a) == len(vector_b)
+
+    vector_c = []
+    for i, ai in enumerate(vector_a):
+        vector_c.append(ai + vector_b[i])
+
+    return vector_c
+
+def print_matrix(*args: Any, matrix: Matrix) -> None:
     """Prints a matrix in a semi-nice format"""
-    print("[")
-    _ = [print(f"  {i}") for i in matrix]
+    print(*args, "\n[")
+    _ = [print(" ", " ".join([str(n) for n in i])) for i in matrix]
     print("]")
+
+def initialize_matrix(n_rows: int, n_cols: int) -> Matrix:
+    """Initializes an empty int matrix given its dimensions"""
+    return [[0 for _ in range(n_rows)] for _ in range(n_cols)]
+
+def split_matrix(matrix: Matrix) -> tuple[Matrix, Matrix, Matrix, Matrix]:
+    """Splits a Matrix into 4 even quadrant matrices"""
+    m11, m12, m21, m22 = [], [], [], []
+
+    matrix_len = len(matrix)
+    matrix_wid = get_width(matrix)
+    row_mid = matrix_len // 2
+    col_mid = matrix_wid // 2
+
+    for i, row in enumerate(matrix):
+        if i < col_mid:
+            m11.append(row[0:row_mid])
+            m12.append(row[row_mid:matrix_wid])
+        else:
+            m21.append(row[0:row_mid])
+            m22.append(row[row_mid:matrix_wid])
+
+    return m11, m12, m21, m22
+
+def combine_matrix(m11: Matrix, m12: Matrix, m21: Matrix, m22: Matrix) -> Matrix:
+    """Combines 4 quadrants of a Matrix into one"""
+    matrix = []
+    offset = len(m11)
+    for i in range(offset + len(m21)):
+        if i < offset:
+            matrix.append(m11[i] + m12[i])
+        else:
+            matrix.append(m21[i - offset] + m22[i - offset])
+
+    return matrix
+
+def matrix_addition(matrix_a, matrix_b) -> Matrix:
+    """Adds two matrices together"""
+    assert len(matrix_a) == len(matrix_b)
+
+    matrix_c = []
+    for i, vector_a in enumerate(matrix_a):
+        vector_b = matrix_b[i]
+        matrix_c.append(vector_addition(vector_a, vector_b))
+
+    return matrix_c
 
 ################################################################################
 
 @matrix_multiplication
 def classic_multiplication(
-            matrix_a: list[list[int]],
-            matrix_b: list[list[int]]
-        ) -> list[list[int]]:
+            matrix_a: Matrix,
+            matrix_b: Matrix
+        ) -> Matrix:
     """
     Multiplies two matrices together. The resultant matrix, C, follows that
     C[i][j] = A[i][...] * B[...][j]
     """
-
     matrix_b_width = get_width(matrix_b)
-    matrix_c = [[0 for _ in range(len(matrix_a))] for _ in range(matrix_b_width)]
+    matrix_c = initialize_matrix(len(matrix_a), matrix_b_width)
     for i, vector_a in enumerate(matrix_a):
         j = 0
         while j < matrix_b_width:
@@ -78,25 +134,60 @@ def classic_multiplication(
             dot_product = vector_multiplication(vector_a, vector_b)
             matrix_c[i][j] = dot_product
             j += 1
-
     return matrix_c
 
-ma = [
+@matrix_multiplication
+def divide_and_conquer_multiplication(
+            matrix_a: Matrix,
+            matrix_b: Matrix
+        ) -> Matrix:
+    """
+    Multiplies two matrices together. The resultant matrix, C, follows that
+    C[i][j] = A[i][...] * B[...][j]
+    """
+    if len(matrix_a) == get_width(matrix_a) \
+            == len(matrix_b) == get_width(matrix_b) \
+                == 2:
+        return classic_multiplication(matrix_a, matrix_b)
+
+    a11, a12, a21, a22 = split_matrix(matrix_a)
+    b11, b12, b21, b22 = split_matrix(matrix_b)
+
+    c11 = matrix_addition(
+        divide_and_conquer_multiplication(a11, b11),
+        divide_and_conquer_multiplication(a12, b21)
+    )
+    c12 = matrix_addition(
+        divide_and_conquer_multiplication(a11, b12),
+        divide_and_conquer_multiplication(a12, b22)
+    )
+    c21 = matrix_addition(
+        divide_and_conquer_multiplication(a21, b11),
+        divide_and_conquer_multiplication(a22, b21)
+    )
+    c22 = matrix_addition(
+        divide_and_conquer_multiplication(a21, b12),
+        divide_and_conquer_multiplication(a22, b22)
+    )
+
+    return combine_matrix(c11, c12, c21, c22)
+
+ma: Matrix = [
     [3, 0, 3, 1],
     [5, 3, 1, 0],
     [3, 0, 3, 1],
     [1, 2, 2, 5]
 ]
 
-mb = [
+mb: Matrix = [
     [2, 4, 5, 2],
     [1, 3, 2, 1],
     [3, 0, 5, 0],
     [0, 4, 1, 4]
 ]
 
-print_matrix(ma)
-print("x")
-print_matrix(mb)
-print("=")
-print_matrix(classic_multiplication(ma, mb))
+print_matrix("MA = ",  matrix=ma)
+print_matrix("MB = ", matrix=mb)
+
+mc: Matrix = divide_and_conquer_multiplication(ma, mb)
+print_matrix("MC = ", matrix=mc)

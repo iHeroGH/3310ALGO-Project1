@@ -2,46 +2,12 @@
 Implements methods for classic, d&q, and strassen matrix multiplication
 """
 from typing import Callable, Any
+from random import randint
 
 type Vector = list[int]
 type Matrix = list[Vector]
 
-def get_width(matrix: Matrix) -> int:
-    """Returns the width of the matrix"""
-    if not matrix:
-        return 0
-    return len(matrix[0])
-
-def can_multiply(
-            matrix_a: Matrix,
-            matrix_b: Matrix
-        ) -> bool:
-    """Denotes whether or not two matrices can be multiplied"""
-    return get_width(matrix_a) == len(matrix_b)
-
-def matrix_multiplication(
-            multiplier: Callable[
-                            [Matrix, Matrix],
-                            Matrix
-                        ]
-        ):
-    """A decorator for a function taking two matrices and returning a matrix"""
-
-    def wrapper(
-                matrix_a: Matrix,
-                matrix_b: Matrix
-            ):
-        """
-        Procedure to take place any time a matrix multiplication function
-        is called
-        """
-
-        assert can_multiply(matrix_a, matrix_b)
-        matrix_c = multiplier(matrix_a, matrix_b)
-        return matrix_c
-
-    return wrapper
-
+# VECTOR OPERATIONS ############################################################
 def vector_multiplication(vector_a: Vector, vector_b: Vector) -> int:
     """Returns the dot product of two vectors"""
     assert len(vector_a) == len(vector_b)
@@ -69,15 +35,85 @@ def vector_negation(vector: Vector) -> Vector:
         neg_vector.append(i * -1)
     return neg_vector
 
-def print_matrix(*args: Any, matrix: Matrix) -> None:
-    """Prints a matrix in a semi-nice format"""
-    print(*args, "\n[")
-    _ = [print(" ", " ".join([str(n) for n in i])) for i in matrix]
-    print("]")
+def vector_equality(*vectors: Vector):
+    """Returns True if all vectors are equal"""
+    if not vectors:
+        return True
 
-def initialize_matrix(n_rows: int, n_cols: int) -> Matrix:
-    """Initializes an empty int matrix given its dimensions"""
-    return [[0 for _ in range(n_rows)] for _ in range(n_cols)]
+    first = vectors[0]
+    for vector in vectors[1:]:
+        if not first == vector:
+            return False
+
+    return True
+
+# MATRIX OPERATIONS ############################################################
+def matrix_multiplication(
+            multiplier: Callable[
+                            [Matrix, Matrix],
+                            Matrix
+                        ]
+        ):
+    """A decorator for a function taking two matrices and returning a matrix"""
+
+    def wrapper(
+                matrix_a: Matrix,
+                matrix_b: Matrix
+            ):
+        """
+        Procedure to take place any time a matrix multiplication function
+        is called
+        """
+
+        assert can_multiply(matrix_a, matrix_b)
+        matrix_c = multiplier(matrix_a, matrix_b)
+        return matrix_c
+
+    return wrapper
+
+def matrix_addition(matrix_a: Matrix, matrix_b: Matrix) -> Matrix:
+    """Adds two matrices together"""
+    assert len(matrix_a) == len(matrix_b)
+
+    matrix_c = []
+    for i, vector_a in enumerate(matrix_a):
+        vector_b = matrix_b[i]
+        matrix_c.append(vector_addition(vector_a, vector_b))
+
+    return matrix_c
+
+def matrix_negation(matrix: Matrix) -> Matrix:
+    """Returns the same matrix but with all the vectors negated"""
+    neg_matrix = []
+    for vector in matrix:
+        neg_matrix.append(vector_negation(vector))
+    return neg_matrix
+
+def matrix_equality(*matrices: Matrix):
+    """Returns True if all matrices are equal"""
+    if not matrices:
+        return True
+
+    first = matrices[0]
+    for matrix in matrices[1:]:
+        if not first == matrix:
+            return False
+
+    return True
+
+# MATRIX HELPERS ###############################################################
+def get_width(matrix: Matrix) -> int:
+    """Returns the width of the matrix"""
+    if not matrix:
+        return 0
+    return len(matrix[0])
+
+def can_multiply(
+            matrix_a: Matrix,
+            matrix_b: Matrix
+        ) -> bool:
+    """Denotes whether or not two matrices can be multiplied"""
+    return get_width(matrix_a) == len(matrix_b)
 
 def split_matrix(matrix: Matrix) -> tuple[Matrix, Matrix, Matrix, Matrix]:
     """Splits a Matrix into 4 even quadrant matrices"""
@@ -98,7 +134,12 @@ def split_matrix(matrix: Matrix) -> tuple[Matrix, Matrix, Matrix, Matrix]:
 
     return m11, m12, m21, m22
 
-def combine_matrix(m11: Matrix, m12: Matrix, m21: Matrix, m22: Matrix) -> Matrix:
+def combine_matrix(
+            m11: Matrix,
+            m12: Matrix,
+            m21: Matrix,
+            m22: Matrix
+        ) -> Matrix:
     """Combines 4 quadrants of a Matrix into one"""
     matrix = []
     offset = len(m11)
@@ -110,26 +151,24 @@ def combine_matrix(m11: Matrix, m12: Matrix, m21: Matrix, m22: Matrix) -> Matrix
 
     return matrix
 
-def matrix_addition(matrix_a: Matrix, matrix_b: Matrix) -> Matrix:
-    """Adds two matrices together"""
-    assert len(matrix_a) == len(matrix_b)
+def generate_random_matrix(min_n: int, max_n: int, dim: int):
+    """
+    Generates a random matrix of dimensions dim x dim with ints ranging from
+    min_n to max_n (using the random.randint function)
+    """
+    return [[randint(min_n, max_n) for _ in range(dim)] for _ in range(dim)]
 
-    matrix_c = []
-    for i, vector_a in enumerate(matrix_a):
-        vector_b = matrix_b[i]
-        matrix_c.append(vector_addition(vector_a, vector_b))
+def initialize_matrix(n_rows: int, n_cols: int) -> Matrix:
+    """Initializes an empty int matrix given its dimensions"""
+    return [[0 for _ in range(n_rows)] for _ in range(n_cols)]
 
-    return matrix_c
+def print_matrix(*args: Any, matrix: Matrix) -> None:
+    """Prints a matrix in a semi-nice format"""
+    print(*args, "\n[")
+    _ = [print(" ", " ".join([str(n) for n in i])) for i in matrix]
+    print("]")
 
-def matrix_negation(matrix: Matrix) -> Matrix:
-    """Returns the same matrix but with all the vectors negated"""
-    neg_matrix = []
-    for vector in matrix:
-        neg_matrix.append(vector_negation(vector))
-    return neg_matrix
-
-################################################################################
-
+# MATRIX MULTIPLIERS ###########################################################
 @matrix_multiplication
 def classic_multiplication(
             matrix_a: Matrix,
@@ -243,6 +282,7 @@ def strassen_multiplication(
 
     return combine_matrix(c11, c12, c21, c22)
 
+# DRIVER #######################################################################
 ma: Matrix = [
     [3, 0, 3, 1],
     [5, 3, 1, 0],

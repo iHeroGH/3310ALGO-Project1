@@ -62,6 +62,13 @@ def vector_addition(vector_a: Vector, vector_b: Vector) -> Vector:
 
     return vector_c
 
+def vector_negation(vector: Vector) -> Vector:
+    """Returns the same vector but with all the values negated"""
+    neg_vector = []
+    for i in vector:
+        neg_vector.append(i * -1)
+    return neg_vector
+
 def print_matrix(*args: Any, matrix: Matrix) -> None:
     """Prints a matrix in a semi-nice format"""
     print(*args, "\n[")
@@ -103,7 +110,7 @@ def combine_matrix(m11: Matrix, m12: Matrix, m21: Matrix, m22: Matrix) -> Matrix
 
     return matrix
 
-def matrix_addition(matrix_a, matrix_b) -> Matrix:
+def matrix_addition(matrix_a: Matrix, matrix_b: Matrix) -> Matrix:
     """Adds two matrices together"""
     assert len(matrix_a) == len(matrix_b)
 
@@ -113,6 +120,13 @@ def matrix_addition(matrix_a, matrix_b) -> Matrix:
         matrix_c.append(vector_addition(vector_a, vector_b))
 
     return matrix_c
+
+def matrix_negation(matrix: Matrix) -> Matrix:
+    """Returns the same matrix but with all the vectors negated"""
+    neg_matrix = []
+    for vector in matrix:
+        neg_matrix.append(vector_negation(vector))
+    return neg_matrix
 
 ################################################################################
 
@@ -172,6 +186,63 @@ def divide_and_conquer_multiplication(
 
     return combine_matrix(c11, c12, c21, c22)
 
+@matrix_multiplication
+def strassen_multiplication(
+            matrix_a: Matrix,
+            matrix_b: Matrix
+        ) -> Matrix:
+    """
+    Multiplies two matrices together. The resultant matrix, C, follows that
+    C[i][j] = A[i][...] * B[...][j]
+    """
+    if len(matrix_a) == get_width(matrix_a) \
+            == len(matrix_b) == get_width(matrix_b) \
+                == 1:
+        return [[matrix_a[0][0] * matrix_b[0][0]]]
+
+    a11, a12, a21, a22 = split_matrix(matrix_a)
+    b11, b12, b21, b22 = split_matrix(matrix_b)
+
+    p = strassen_multiplication(
+        matrix_addition(a11, a22),
+        matrix_addition(b11, b22)
+    )
+    q = strassen_multiplication(
+        matrix_addition(a21, a22),
+        b11
+    )
+    r = strassen_multiplication(
+        a11,
+        matrix_addition(b12, matrix_negation(b22))
+    )
+    s = strassen_multiplication(
+        a22,
+        matrix_addition(b21, matrix_negation(b11))
+    )
+    t = strassen_multiplication(
+        matrix_addition(a11, a12),
+        b22
+    )
+    u = strassen_multiplication(
+        matrix_addition(a21, matrix_negation(a11)),
+        matrix_addition(b11, b12)
+    )
+    v = strassen_multiplication(
+        matrix_addition(a12, matrix_negation(a22)),
+        matrix_addition(b21, b22)
+    )
+
+    c11 = matrix_addition( # P + S - T + V
+        matrix_addition(matrix_addition(p, s), matrix_negation(t)), v
+    )
+    c12 = matrix_addition(r, t) # R + T
+    c21 = matrix_addition(q, s) # Q + S
+    c22 = matrix_addition( # P + R - Q + U
+        matrix_addition(matrix_addition(p, r), matrix_negation(q)), u
+    )
+
+    return combine_matrix(c11, c12, c21, c22)
+
 ma: Matrix = [
     [3, 0, 3, 1],
     [5, 3, 1, 0],
@@ -189,5 +260,11 @@ mb: Matrix = [
 print_matrix("MA = ",  matrix=ma)
 print_matrix("MB = ", matrix=mb)
 
+mc: Matrix = classic_multiplication(ma, mb)
+print_matrix("MC = ", matrix=mc)
+
 mc: Matrix = divide_and_conquer_multiplication(ma, mb)
+print_matrix("MC = ", matrix=mc)
+
+mc: Matrix = strassen_multiplication(ma, mb)
 print_matrix("MC = ", matrix=mc)

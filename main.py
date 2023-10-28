@@ -192,12 +192,10 @@ def classic_multiplication(
     matrix_b_width = get_width(matrix_b)
     matrix_c = initialize_matrix(len(matrix_a), matrix_b_width)
     for i, vector_a in enumerate(matrix_a):
-        j = 0
-        while j < matrix_b_width:
+        for j in range(matrix_b_width):
             vector_b = [matrix_b[n][j] for n in range(len(matrix_b))]
             dot_product = vector_multiplication(vector_a, vector_b)
             matrix_c[i][j] = dot_product
-            j += 1
     return matrix_c
 
 @matrix_multiplication
@@ -306,7 +304,7 @@ def strassen_multiplication(
     return combine_matrix(c11, c12, c21, c22)
 
 # DRIVER #######################################################################
-FILE_NAME = "comparison"
+FILE_NAME = "_comparison"
 DIMENSIONS = 1
 
 to_plot = [(1, 0.0, 0.0, 0.0), (2, 0.0, 0.0, 0.0), (4, 0.0, 0.0, 0.0), (8, 0.0, 0.0, 0.0), (16, 0.0, 0.00200009, 0.00299978), (32, 0.00300002, 0.01599979, 0.01700020), (64, 0.01699996, 0.11999989, 0.09900022), (128, 0.11500001, 0.83219361, 0.68902183), (256, 0.82909226, 5.98675585, 5.01225328), (512, 7.11797404, 48.80505586, 35.73910618), (1024, 60.36604047, 422.11808968, 256.04897285), (2048, 511.70179129, 3622.05818796, 1995.80061650), (4096, 3980.2287867069244, 25576.15448641777, 13068.262087345123), (8192, 42761.72569966, 254930.33360219, 112292.37196398)]

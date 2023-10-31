@@ -6,9 +6,7 @@ from typing import Callable, Any
 from random import randint
 from time import time
 from matplotlib import pyplot as plt
-
-type Vector = list[int]
-type Matrix = list[Vector]
+from collection_types import Vector, Matrix
 
 # VECTOR OPERATIONS ############################################################
 def vector_multiplication(vector_a: Vector, vector_b: Vector) -> int:
@@ -304,66 +302,70 @@ def strassen_multiplication(
     return combine_matrix(c11, c12, c21, c22)
 
 # DRIVER #######################################################################
-FILE_NAME = "comparison"
-DIMENSIONS = 1
+def execute(to_plot = []) -> None:
+    FILE_NAME = "_comparison"
+    DIMENSIONS = 1
 
-to_plot = []
-while True:
-    try:
-        start = time()
+    if not to_plot:
+        while True:
+            try:
+                start = time()
 
-        # Create random input matrices
-        print(f"Matrices with dim {DIMENSIONS} are being created!")
-        ma: Matrix = generate_random_matrix(1, 50, DIMENSIONS)
-        # print_matrix("MA = ", matrix=ma)
-        mb: Matrix = generate_random_matrix(1, 50, DIMENSIONS)
-        # print_matrix("MB = ", matrix=mb)
-        print("Beginning Multiplication.")
+                # Create random input matrices
+                print(f"Matrices with dim {DIMENSIONS} are being created!")
+                ma: Matrix = generate_random_matrix(1, 50, DIMENSIONS)
+                # print_matrix("MA = ", matrix=ma)
+                mb: Matrix = generate_random_matrix(1, 50, DIMENSIONS)
+                # print_matrix("MB = ", matrix=mb)
+                print("Beginning Multiplication.")
 
-        mcc, c_duration = classic_multiplication(ma, mb)
-        # print_matrix("MCC = ", matrix=mcc)
+                mcc, c_duration = classic_multiplication(ma, mb)
+                # print_matrix("MCC = ", matrix=mcc)
 
-        mcd, d_duration = divide_and_conquer_multiplication(ma, mb)
-        # print_matrix("MCD = ", matrix=mcd)
+                mcd, d_duration = divide_and_conquer_multiplication(ma, mb)
+                # print_matrix("MCD = ", matrix=mcd)
 
-        mcs, s_duration = strassen_multiplication(ma, mb)
-        # print_matrix("MCS = ", matrix=mcs)
+                mcs, s_duration = strassen_multiplication(ma, mb)
+                # print_matrix("MCS = ", matrix=mcs)
 
-        # Store the durations
-        to_plot.append((DIMENSIONS, c_duration, d_duration, s_duration))
+                # Store the durations
+                to_plot.append((DIMENSIONS, c_duration, d_duration, s_duration))
+                print(to_plot, file=open(f"{FILE_NAME}.txt", 'w', encoding="utf-8"))
+
+                # Make sure we got the same answer for all three algorithms
+                assert matrix_equality(mcc, mcd, mcs)
+                print("All three calculations returned the same matrix!\n\n")
+
+            # If something goes wrong, exit so we can at least plot it
+            # This also lets us Ctrl+C to exit and still keep/plot the data
+            except:
+                break
+
+            DIMENSIONS *= 2
+
+            # If we're taking longer than 8 hours to get results
+            # if time() - start > 8 * 3_600:
+            #    break
+
         print(to_plot, file=open(f"{FILE_NAME}.txt", 'w', encoding="utf-8"))
 
-        # Make sure we got the same answer for all three algorithms
-        assert matrix_equality(mcc, mcd, mcs)
-        print("All three calculations returned the same matrix!\n\n")
+    dimensions_used = [i[0] for i in to_plot]
+    c_durations = [i[1]//3600 for i in to_plot]
+    d_durations = [i[2]//3600 for i in to_plot]
+    s_durations = [i[3]//3600 for i in to_plot]
 
-    # If something goes wrong, exit so we can at least plot it
-    # This also lets us Ctrl+C to exit and still keep/plot the data
-    except:
-        break
+    plt.title("Multiplication Algorithm Comparison")
+    plt.xlabel("Dimensions Used")
+    plt.ylabel("Time Taken (h)")
 
-    DIMENSIONS *= 2
+    plt.plot(dimensions_used, c_durations, color="red", label="Classic")
+    plt.plot(dimensions_used, d_durations, color="green", label="Divide & Conquer")
+    plt.plot(dimensions_used, s_durations, color="blue", label="Strassen")
 
-    # If we're taking longer than 8 hours to get results
-    # if time() - start > 8 * 3_600:
-    #    break
+    plt.legend()
 
-print(to_plot, file=open(f"{FILE_NAME}.txt", 'w', encoding="utf-8"))
+    plt.savefig(f"{FILE_NAME}.png")
+    plt.show()
 
-dimensions_used = [i[0] for i in to_plot]
-c_durations = [i[1]//3600 for i in to_plot]
-d_durations = [i[2]//3600 for i in to_plot]
-s_durations = [i[3]//3600 for i in to_plot]
-
-plt.title("Multiplication Algorithm Comparison")
-plt.xlabel("Dimensions Used")
-plt.ylabel("Time Taken (h)")
-
-plt.plot(dimensions_used, c_durations, color="red", label="Classic")
-plt.plot(dimensions_used, d_durations, color="green", label="Divide & Conquer")
-plt.plot(dimensions_used, s_durations, color="blue", label="Strassen")
-
-plt.legend()
-
-plt.savefig(f"{FILE_NAME}.png")
-plt.show()
+if __name__ == "__main__":
+    execute([(1, 0.0, 0.0, 0.0), (2, 0.0, 0.0, 0.0), (4, 0.0, 0.0, 0.0), (8, 0.0, 0.0, 0.0), (16, 0.0, 0.00200009, 0.00299978), (32, 0.00300002, 0.01599979, 0.01700020), (64, 0.01699996, 0.11999989, 0.09900022), (128, 0.11500001, 0.83219361, 0.68902183), (256, 0.82909226, 5.98675585, 5.01225328), (512, 7.11797404, 48.80505586, 35.73910618), (1024, 60.36604047, 422.11808968, 256.04897285), (2048, 511.70179129, 3622.05818796, 1995.80061650), (4096, 3980.2287867069244, 25576.15448641777, 13068.262087345123), (8192, 42761.72569966, 254930.33360219, 112292.37196398)])
